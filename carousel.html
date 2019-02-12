@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="charset" content="utf-8">
+  <title>Carousel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .clearfix {
+      content: ' ';
+      display: table;
+      clear: both;
+    }
+
+    .carousel {
+      position: relative;
+      overflow: hidden;
+      width: 400px;
+      height: 200px;
+      margin: 50px auto;
+      background-color: green;
+    }
+
+    .carousel .content {
+      list-style: none;
+      height: 100%;
+      position: absolute;
+      overflow: hidden;
+      top: 0;
+      left: 0;
+    }
+
+    .carousel .content > li {
+      float: left;
+      width: 400px;
+      height: 200px;
+      background-color: pink;
+    }
+
+    .carousel .content > li:nth-child(2) {
+      background-color: red;
+    }
+
+    .carousel .content > li:nth-child(3) {
+      background-color: green;
+    }
+
+    .carousel .content > li:nth-child(4) {
+      background-color: blue;
+    }
+
+    .carousel .content > li:nth-child(5) {
+      background-color: yellow;
+    }
+
+    .carousel .content > li:nth-child(6) {
+      background-color: black;
+    }
+
+    .carousel .content > li > a {
+      display: block;
+      width: 100%;
+      height: 100%;
+      font-size: 40px;
+      text-align: center;
+      line-height: 200px;
+    }
+
+    .indicators-wrap {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translate(-50%);
+      font-size: 0;
+    }
+
+    .indicators-wrap span {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #333;
+    }
+
+    .indicators-wrap span.active {
+      background-color: red;
+    }
+
+    .indicators-wrap span + span {
+      margin-left: 10px;
+    }
+
+    .controls {
+      display: none;
+    }
+
+    .controls span {
+      position: absolute;
+      width: 20px;
+      height: 30px;
+      background-color: rgba(0, 0, 0, .4);
+      line-height: 30px;
+      text-align: center;
+      top: 50%;
+      transform: translate(0, -50%);
+      cursor: pointer;
+    }
+
+    .prev {
+      left: 10px;
+    }
+
+    .next {
+      right: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<!--template-->
+<div class="carousel">
+  <ul class="content">
+    <li class="item"><a href="#">1</a></li>
+    <li class="item"><a href="#">2</a></li>
+    <li class="item"><a href="#">3</a></li>
+    <li class="item"><a href="#">4</a></li>
+    <li class="item"><a href="#">5</a></li>
+  </ul>
+  <div class="indicators-wrap"></div>
+  <div class="controls">
+    <span class="prev">&lt;</span>
+    <span class="next">&gt;</span>
+  </div>
+</div>
+
+<script>
+
+class Carousel  {
+  constructor (el, conf) {
+    this.container = document.querySelector(el)
+    this.content = this.container.querySelector('.content')
+    this.items = this.container.querySelectorAll('.item')
+    this.indicatorsWrap = this.container.querySelector('.indicators-wrap')
+    this.controls = this.container.querySelector('.controls')
+    this.indicators = null
+    this.counts = this.items.length
+    this.width = this.items[0].offsetWidth
+
+    this.index = 0
+
+    this.conf = {
+      loop: true,
+      controls: true,
+      transitionDuration: 300,
+      loopDuration: 1000,
+      beforeTransition: null,
+      afterTransition: null,
+      ...conf
+    }
+
+    this.beforeTransition = this.conf.beforeTransition
+  }
+
+  static debounce (fn, time) {
+    let timer = null
+    return function (...args) {
+      timer && clearTimeout(timer)
+      timer = setTimeout(() => {
+        fn.apply(this, args)
+      }, time)
+    }
+  }
+
+  static throttle (fn, time) {
+    let pre = 0
+    return function () {
+      let now = Date.now()
+      if (now - pre > time) {
+        pre = now
+        fn.apply(this, arguments)
+      }
+    }
+  }
+
+  init () {
+    this.renderContent()
+    this.renderIndicators()
+    this.renderControls()
+    this.bindEvents()
+
+    setTimeout(() => {
+      this.addTransition()
+    }, 0)
+
+    if (this.conf.loop) this.cycle()
+  }
+
+  renderContent () {
+    let items     = this.items,
+        content   = this.content,
+        counts    = this.counts,
+        firstCopy = items[0].cloneNode(true),
+        lastCopy  = items[counts - 1].cloneNode(true)
+
+    content.insertBefore(lastCopy, items[0])
+    content.appendChild(firstCopy)
+
+    content.style.width = this.width * (counts + 2) + 'px'
+    content.style.transform = `translate3D(${-this.width}px, 0, 0)`
+  }
+
+  renderIndicators () {
+    let counts          = this.counts,
+        indicatorsWrap  = this.indicatorsWrap,
+        index           = this.index,
+        indicators_html = '',
+        i
+    for (i = 0; i < counts; i++) {
+      indicators_html += '<span></span>'
+    }
+    indicatorsWrap.innerHTML = indicators_html
+    this.indicators = document.querySelectorAll('.indicators-wrap span')
+    this.indicators[index].classList.add('active')
+  }
+
+  renderControls () {
+    if (this.conf.controls) {
+      this.controls.style.display = 'block'
+    }
+  }
+
+  bindEvents () {
+    this.indicatorsWrap.addEventListener('click', this.indicatorClick.bind(this))
+    this.container.addEventListener('mouseover', this.pause.bind(this))
+    this.container.addEventListener('mouseout', this.cycle.bind(this))
+    this.controls.addEventListener('click', Carousel.throttle(this.controlClick.bind(this), this.conf.transitionDuration))
+  }
+
+  cycle () {
+    this.cycle.timer && clearInterval(this.cycle.timer)
+    this.cycle.timer = setInterval(() => {
+      this.correctPosition(() => {
+        this.index++
+        this.setPosition()
+        this.setIndicator()
+      })
+    }, this.conf.loopDuration)
+  }
+
+  pause () {
+    this.cycle.timer && clearInterval(this.cycle.timer)
+  }
+
+  //dom方法
+  addTransition () {
+    this.content.style.transition = `transform ${this.conf.transitionDuration}ms`
+  }
+
+  removeTransition () {
+    this.content.style.transition = null
+  }
+
+  setPosition () {
+    typeof this.beforeTransition === 'function' && this.beforeTransition()
+    this.content.style.transform = `translate3D(${-this.width * (this.index + 1)}px, 0, 0)`
+  }
+
+  setIndicator () {
+    let index = this.index,
+        i
+    this.indicators.forEach(function (el) {
+      el.classList.remove('active')
+    })
+    i = index > this.counts - 1 ? 0 : (index < 0 ? this.counts - 1 : index)
+    this.indicators[i].classList.add('active')
+  }
+
+  correctPosition (callback) {
+    let counts = this.counts,
+        index  = this.index
+    if (index > counts - 1) {
+      this.index = 0
+      this.removeTransition()
+      this.setPosition()
+    } else if (index < 0) {
+      this.index = counts - 1
+      this.removeTransition()
+      this.setPosition()
+    }
+    setTimeout(() => {
+      this.addTransition()
+      callback()
+    }, 0)
+  }
+
+  indicatorClick (e) {
+    let i = Array.prototype.indexOf.call(this.indicators, e.target)
+    if (i > -1 && i < this.counts) {
+      this.index = i
+      this.setPosition()
+      this.setIndicator()
+    }
+  }
+
+  controlClick (e) {
+    this.correctPosition(() => {
+      if (e.target.className === 'prev') {
+        this.index--
+      } else if (e.target.className === 'next') {
+        this.index++
+      }
+      this.setPosition()
+      this.setIndicator()
+    })
+  }
+}
+
+
+
+new Carousel('.carousel', {
+  // loop: false,
+  loopDuration: 3000,
+  transitionDuration: 300
+}).init()
+
+
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    .box {
+      width: 1000px;
+      margin-left: auto;
+      margin-right: auto;
+      margin-top: 100px;
+      position: relative;
+      background-color: #eeeeee;
+    }
+
+    .left {
+      position: relative;
+      float: left;
+    }
+
+    .left img {
+      display: block;
+      width: 200px;
+      height: 200px;
+      background-color: #eee;
+    }
+
+    .left .mask {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      top: 0;
+      left: 0;
+      background-color: rgba(0, 0, 255, .4);
+      opacity: 0;
+      cursor: move;
+    }
+
+    .right {
+      position: absolute;
+      top: 0;
+      left: 200px;
+      width: 300px;
+      height: 300px;
+      background-color: #ddd;
+      overflow: hidden;
+      display: none;
+    }
+
+    .right img {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 600px;
+      height: 600px;
+      background-color: red;
+    }
+  </style>
+  <script src="myPromise.js"></script>
+</head>
+<body>
+
+<div class="box">
+  <div class="left">
+    <img src="./演员.jpg" alt="这里需要一幅图片">
+    <span class="mask"></span>
+  </div>
+  <div class="right">
+    <img src="./演员.jpg" alt="这里需要一幅图片">
+  </div>
+</div>
+
+<script>
+window.onload = function () {
+  let left = document.querySelector('.left')
+  let mask = document.querySelector('.mask')
+  let right = document.querySelector('.right')
+  let rightImg = document.querySelector('.right img')
+  let box = document.querySelector('.box')
+
+  let maskWidth = mask.offsetWidth
+  let maskHeight = mask.offsetHeight
+  let leftWidth = left.offsetWidth
+  let leftHeight = left.offsetHeight
+  let rightWidth
+  let rightImgWidth
+
+  left.onmouseover = function () {
+    mask.style.opacity = '1'
+    right.style.display = 'block'
+    rightWidth = right.offsetWidth
+    rightImgWidth = rightImg.offsetWidth
+  }
+  left.onmousemove = function (e) {
+    let boxOL = box.offsetLeft
+    let boxOT = box.offsetTop - document.documentElement.scrollTop
+
+    let ox = e.clientX - boxOL
+    let oy = e.clientY - boxOT
+
+    let left = ox - maskWidth/2
+    let top = oy - maskWidth/2
+
+    let minRangeX = 0
+    let maxRangeX = leftWidth - maskWidth
+    let minRangY = 0
+    let maxRangY = leftHeight - maskHeight
+
+    left = left < minRangeX
+      ? minRangeX
+      : left > maxRangeX
+        ? maxRangeX
+        : left
+    top = top < minRangY
+      ? minRangY
+      : top > maxRangY
+        ? maxRangY
+        : top
+
+    mask.style.left = left + 'px'
+    mask.style.top = top + 'px'
+
+    let rate = (rightWidth - rightImgWidth) / maxRangeX
+    rightImg.style.left = left * rate + 'px'
+    rightImg.style.top = top * rate + 'px'
+  }
+
+  left.onmouseout = function () {
+    mask.style.opacity = '0'
+    right.style.display = 'none'
+  }
+
+  function type (arg) {
+    return Object.prototype.toString.call(arg).slice(8,-1)
+  }
+
+}
+
+</script>
+
+</body>
+</html>

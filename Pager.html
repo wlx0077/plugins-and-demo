@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    ul {
+      list-style: none;
+    }
+
+    .pager-container {
+      overflow: hidden;
+      position: relative;
+    }
+
+    .pager-prev,
+    .pager-next,
+    .pager-item {
+      float: left;
+      margin: 0 5px;
+      user-select: none;
+    }
+
+    .pager-prev:hover a,
+    .pager-next:hover a,
+    .pager-item:hover a {
+      background-color: #333333;
+      color: #ffffff;
+    }
+
+    .pager-prev a,
+    .pager-next a,
+    .pager-item a {
+      display: block;
+      padding: 20px;
+    }
+
+    .pager-item.active a {
+      background-color: #333333;
+      color: #ffffff;
+    }
+
+    a {
+      color: #666;
+      text-decoration: none;
+    }
+  </style>
+  <script src="myPromise.js"></script>
+</head>
+<body>
+
+<div class="pager">
+  <ul class="pager-container">
+    <!--<li class="pager-item active"><a href="#">1</a></li>-->
+    <!--<li class="pager-item"><a href="#">3</a></li>-->
+    <!--<li class="pager-item"><a href="#">4</a></li>-->
+    <!--<li class="pager-omit"><a href="#"></a></li>-->
+  </ul>
+</div>
+
+<script>
+//pager
+//1.初始化
+//1.1初始化页码总数
+//1.2初始化显示总数
+//1.3初始化省略号
+//2.功能
+//2.1切换指定页码
+//2.2前进
+//2.3后退
+
+//3.功能拆分
+//3.1计算页码总数
+//3.2当前页面总数
+//3.3判断省略是否显示
+//3.4
+
+class Pager {
+  constructor (el, config) {
+    let container = document.querySelector(el)
+    this.domMap = {
+      container,
+      prev: null,
+      next: null
+    }
+    this.configMap = {
+      pageCounts: 20,
+      step: 5,
+      hasController: true,
+      prevClass: 'pager-prev',
+      prevText: '&lt;&lt;',
+      nextClass: 'pager-next',
+      nextText: '&gt;&gt;',
+      pageClass: 'pager-item',
+      omitClass: 'pager-item',
+      omitText: '...',
+      activeClass: 'active',
+      ...config
+    }
+    this.stateMap = {
+      pages: [],
+      current: 1
+    }
+  }
+
+  init () {
+    this.computePages()
+    this.renderPager()
+    this.setDomMap()
+    this.bindEvents()
+  }
+
+  setDomMap () {
+    let container = this.domMap.container
+    if (this.configMap.hasController) {
+      this.domMap.prev = container.querySelector(`.${this.configMap.prevClass}`)
+      this.domMap.next = container.querySelector(`.${this.configMap.nextClass}`)
+    }
+  }
+
+  computePages () {
+    let conf = this.configMap
+    let state = this.stateMap
+    let lastPage = conf.pageCounts
+    let currentPage = state.current
+    let step = conf.step
+
+    state.pages = []
+    if (lastPage <= step) {
+      for (let i = 0; i < lastPage; i++) {
+        state.pages.push(i + 1)
+      }
+      return
+    }
+
+    let offsetLeft = currentPage - 1
+    let offsetRight = lastPage - currentPage
+    let flag = Math.floor(step / 2)
+
+    state.pages.push(1)
+    if (offsetLeft > flag) {
+      state.pages.push('')
+    }
+    for (let i = 0; i < step - 2; i++) {
+      let page = 2
+      if (offsetLeft <= flag) {
+        page += i
+      }
+      if (offsetLeft > flag && offsetRight > flag) {
+        page += offsetLeft - flag + i
+      }
+      if (offsetRight <= flag) {
+        page = lastPage - step + 2 + i
+      }
+      state.pages.push(page)
+    }
+    if (offsetRight > flag) {
+      state.pages.push('')
+    }
+    state.pages.push(lastPage)
+  }
+
+  createItemHtml (text, pageClass, data, activeClass) {
+    let className = activeClass
+      ? `${pageClass} ${activeClass}`
+      : `${pageClass}`
+    return data
+      ? `<li class="${className}" data-page="${data}"><a href="javascript:;">${text}</a></li>`
+      : `<li class="${className}"><a href="javascript:;">${text}</a></li>`
+  }
+
+  getPagerHtml () {
+    let pages = this.stateMap.pages
+    let conf = this.configMap
+    let createHtml = this.createItemHtml
+    let innerHtml = ''
+
+    for (let i = 0; i < pages.length; i++) {
+      let page = pages[i]
+      let args
+      if (!page) {
+        args = [conf.omitText, conf.omitClass]
+      } else if (page === this.stateMap.current) {
+        args = [page, conf.pageClass, page, conf.activeClass]
+      } else {
+        args = [page, conf.pageClass, page]
+      }
+      innerHtml += createHtml.apply(args)
+    }
+
+    if (conf.hasController) {
+      let preText = this.configMap.prevText
+      let nextText = this.configMap.nextText
+      let pre = createHtml(preText, conf.prevClass)
+      let next = createHtml(nextText, conf.nextClass)
+      innerHtml = pre + innerHtml + next
+    }
+    return innerHtml
+  }
+
+  renderPager () {
+    this.domMap.container.innerHTML = this.getPagerHtml()
+  }
+
+  bindEvents () {
+    let dom = this.domMap
+    dom.container.addEventListener('click', this.delegatePageClick.bind(this))
+    dom.prev.addEventListener('click', this.prev.bind(this))
+    dom.next.addEventListener('click', this.next.bind(this))
+  }
+
+  unbindEvents () {
+    let dom = this.domMap
+    dom.container.removeEventListener('click', this.delegatePageClick)
+    dom.prev.removeEventListener('click', this.prev)
+    dom.next.removeEventListener('click', this.next)
+  }
+
+  updatePager () {
+    this.unbindEvents()
+    this.init()
+  }
+
+  delegatePageClick (e) {
+    let page = +(e.target.parentNode.dataset.page)
+    if (page) {
+      this.go(page)
+    }
+  }
+
+  prev () {
+    if (this.stateMap.current <= 1) return
+    this.stateMap.current--
+    this.updatePager()
+  }
+
+  next () {
+    if (this.stateMap.current >= this.configMap.pageCounts) return
+    this.stateMap.current++
+    this.updatePager()
+  }
+
+  go (page) {
+    if (page === this.stateMap.current) return
+    this.stateMap.current = page
+    this.updatePager()
+  }
+
+}
+
+let pager = new Pager('.pager-container').init()
+</script>
+
+</body>
+</html>
